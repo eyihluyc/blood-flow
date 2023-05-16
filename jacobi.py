@@ -3,56 +3,59 @@ from constants import *
 # finite difference grid:
 
 # p_l and p_r -- pressure on borders, a function of z
-class Grid():
-    def __init__(self, p_l, p_r, n=500, m=100):
+class StationaryGrid():
+    def __init__(self, p_l, p_r, n=100, m=50):
         self.n = n
         self.m = m
         
-        self.hx = L/n
-        self.hz = D/m
+        self.hx = 1/n
+        self.hz = 1/m
 
         self.p = np.zeros((n, m))
-        self.p[0] = np.vectorize(p_l)(np.linspace(0, D, m))
-        self.p[-1] = np.vectorize(p_r)(np.linspace(0, D, m))
+        self.p[0] = np.vectorize(p_l)(np.linspace(0, 1, m))
+        self.p[-1] = np.vectorize(p_r)(np.linspace(0, 1, m))
         
-        self.K = np.zeros((n, m))
-        for i in range(n):
-            for j in range(m):
-                self.K[i,j] = K(i*self.hx, j*self.hz)
-        
+        self.K = discrete_K(n=n, m=m)
+
     # initial values -- linear interpolation b/w left and right boundaries
         for j in range(0, m):
             self.p[:, j] = np.interp(np.arange(0, n), [0, n-1], [self.p[0, j], self.p[n-1, j]])
         
         self.iterations = 0
         self.eps = float('inf')
+        self.max_div = float('inf')
         
     # apply gauss-seidel method with even/odd order until distance with L\inf is less than eps
-    def iterate(self, iter_or_err="iter", steps=100, eps=1e-5):
+    # or diverngence is bounded by max_div
+    # or certain number of iterations
+    def iterate(self, criterion="iter", steps=100, eps=1e-5, max_div = 0.001):
         
-        if (iter_or_err == "iter"):
-            for _ in range(steps-1):
+        if (criterion == "iter"):
+            for _ in range(steps):
                 self.make_step()
-            self.calculate_eps()
-        elif (iter_or_err == "err"):
+        elif (criterion == "err"):
             while (self.eps > eps):
-                self.calculate_eps()
-    
-    # method invokes one step
-    def calculate_eps(self):
-        prev = self.p.copy()
-        self.make_step()
-        self.eps = np.max(np.abs(prev - self.p))
-        return self.eps
-        
-    
+                self.make_step()
+        elif (criterion == "div"):
+            while (self.max_div > max_div):
+                print(f"step {self.iterations}, max divergence is {self.max_div}")
+                for _ in range(50):
+                    self.make_step()
+                self.calc_div()
+
+                
     def make_step(self):
+
+        prev = self.p.copy()
+        
         self.iterations += 1
         self.half_step(0)
         self.half_step(1)
         
         self.p[:, 0] = self.p[:, 1]
         self.p[:, -1] = self.p[:, -2]
+
+        self.eps = np.max(np.abs(prev - self.p))
     
     def half_step(self, oddity):
 
@@ -63,3 +66,12 @@ class Grid():
                                   (self.p[i,j+1]*self.K[i, j+1] + self.p[i,j-1]*self.K[i, j])/(self.hz * self.hz)
                     denom = (self.K[i+1, j] + self.K[i, j])/(self.hx * self.hx) + (self.K[i, j+1] + self.K[i, j])/(self.hz * self.hz) 
                     self.p[i,j] = num / denom
+
+    def calc_div(self):
+        self.div = np.zeros_like(self.p)
+        for i in range(1, self.n-1):
+            for j in range(1, self.m - 1):
+              vxx = (self.K[i+1,j]*(self.p[i+1,j]-self.p[i,j]) - self.K[i,j]*(self.p[i,j]-self.p[i-1,j]) )/(self.hx * self.hx)
+              vzz = (self.K[i,j+1]*(self.p[i,j+1]-self.p[i,j]) - self.K[i,j]*(self.p[i,j]-self.p[i,j-1]) )/(self.hz * self.hz)
+              self.div[i, j] = vzz + vxx
+        self.max_div = np.max(self.div)
