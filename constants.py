@@ -1,39 +1,41 @@
 import numpy as np
 
-mu = 4 # cP; blood viscocity ranges from 3.5 to 5.5 cp
+# blood rheology constants
 
-L = 0.01 # m; length of blood tube we consider
-D = 2.7e-3 # m; diameter of an artery; ranges from 2.54 to 2.85 mm
+# mu = 5 # cP; blood viscocity ranges from 3.5 to 5.5 cp
+mu = 5e-6 # 5e-3 Pa s = 5e-6 kg/mm/s
+max_permeability = 0.283 # mm^2
 
-# unit_scaled = True if input x, z are scaled from 0 to 1
-def K(x, z, unit_scaled=True): # permeability drawn according to the scheme from notes
-    
-    if unit_scaled:
-       x, z = x * L, z * D
-    
-    # due to symmetry:
-    z = min(z, D-z)
+# blood vessel geometry
+L = 10 # mm; length of the artery we consider
+D = 2.5 # mm; diameter of the artery
 
-    clot_center_x, clot_center_z = L/2, -D/15
-    
-    # distance from point (x, z) to the clot center
-    dist = np.linalg.norm((x - clot_center_x, z - clot_center_z))
-    
-    return (1/(1+np.exp(-( 2000*dist ))))
+def get_permeability(center, radius, range=(1e-7, 1e-7)): 
+
+    def permeability(x, z):
+       # due to symmetry:
+      z = min(z, D-z)
+
+      center_x, center_z = center
+      min_K, max_K = range
+      
+      # distance from point (x, z) to the clot center
+      dist = np.linalg.norm(((x - center_x), z - center_z))
+      
+      return max_permeability if radius < dist else dist/radius * (max_K - min_K) + min_K
+
+    return permeability
 
 
-def discrete_K(n=100, m=50):
-  hx = 1/n
-  hz = 1/m
+K1 = get_permeability((L/2, -1), 1.3) #  vessel with the resolving clot
+K2 = get_permeability((L/2, 0.25), 0.4) #  vessel with clot at high risk of breakage
+K3 = get_permeability((L/2, 0), 0.6, (1e-7, 0.1)) #  vessel with clot at high risk of breakage
+
+def discretize_K(K, n, m):
+  hx = L/n
+  hz = D/m
   _K = np.zeros((n, m))
   for i in range(n):
     for j in range(m):
-        _K[i,j] = K(i*hx, j*hz, unit_scaled=True)
+        _K[i,j] = K(i*hx, j*hz)
   return _K
-
-
-# def dKdx(x, z, eps=L/100):
-#   return (K(x+eps, z) - K(x-eps, z)) / (2*eps)
-
-# def dKdz(x, z, eps=D/100):
-#   return (K(x, z+eps) - K(x, z-eps)) / (2*eps)
