@@ -29,10 +29,10 @@ class NN4PDE:
     return p
   
   ###########
-  # Derivatives of the NN
+  # Derivative of the NN
   ###########
   def dNdz(self, x, z, params, eps=EPSILON):
-    return (self.NN(x, z+eps, params) - self.NN(x-eps, z, params)) / (2*eps)
+    return (self.NN(x, z+eps, params) - self.NN(x, z-eps, params)) / (2*eps)
 
   ###########
   # Derivatives of the trial solution (Psi)

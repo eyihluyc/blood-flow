@@ -1,10 +1,11 @@
-from constants import *
+from constants import discrete_K
+import numpy as np
 
 # finite difference grid:
 
-# p_l and p_r -- pressure on borders, a function of z
+# p_l and p_r -- np arrays of shape (m,)
 class StationaryGrid():
-    def __init__(self, p_l, p_r, n=100, m=50):
+    def __init__(self, p_l, p_r, n, m):
         self.n = n
         self.m = m
         
@@ -12,8 +13,8 @@ class StationaryGrid():
         self.hz = 1/m
 
         self.p = np.zeros((n, m))
-        self.p[0] = np.vectorize(p_l)(np.linspace(0, 1, m))
-        self.p[-1] = np.vectorize(p_r)(np.linspace(0, 1, m))
+        self.p[0] = p_l
+        self.p[-1] = p_r
         
         self.K = discrete_K(n=n, m=m)
 
@@ -27,8 +28,8 @@ class StationaryGrid():
         
     # apply gauss-seidel method with even/odd order until distance with L\inf is less than eps
     # or diverngence is bounded by max_div
-    # or certain number of iterations
-    def iterate(self, criterion="iter", steps=100, eps=1e-5, max_div = 0.001):
+    # or certain number of iterations is achieved
+    def iterate(self, criterion, steps=100, eps=1e-5, max_div = 0.001):
         
         if (criterion == "iter"):
             for _ in range(steps):
