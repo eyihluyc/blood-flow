@@ -1,11 +1,11 @@
-from constants import discrete_K
+from constants import discretize_K
 import numpy as np
 
 # finite difference grid:
 
 # p_l and p_r -- np arrays of shape (m,)
 class StationaryGrid():
-    def __init__(self, p_l, p_r, n, m):
+    def __init__(self, p_l, p_r, K, n, m):
         self.n = n
         self.m = m
         
@@ -16,7 +16,7 @@ class StationaryGrid():
         self.p[0] = p_l
         self.p[-1] = p_r
         
-        self.K = discrete_K(n=n, m=m)
+        self.K = discretize_K(K=K, n=n, m=m)
 
     # initial values -- linear interpolation b/w left and right boundaries
         for j in range(0, m):
@@ -39,7 +39,6 @@ class StationaryGrid():
                 self.make_step()
         elif (criterion == "div"):
             while (self.max_div > max_div):
-                print(f"step {self.iterations}, max divergence is {self.max_div}")
                 for _ in range(50):
                     self.make_step()
                 self.calc_div()
